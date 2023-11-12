@@ -1,6 +1,7 @@
 import optuna
 import mlflow
 from utils.utils_eval import log_results
+import pandas as pd
 
 def instantiate_xgboost(trial, random_state, task, objective):
     """Create XGBoost model to tune
