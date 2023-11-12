@@ -127,7 +127,7 @@ def tune_model(run_name, model_name, direction, task, n_trials, targets, X_train
             print(f'Started tuning {model_name} for {target}...')
             study = optuna.create_study(direction=direction, study_name=task, 
                                         sampler=optuna.samplers.TPESampler(seed=random_state, multivariate=True))
-            study.optimize(lambda trial: objective(trial, model_name, X_train, y_train[target], n_splits, random_state), 
+            study.optimize(lambda trial: objective(trial, model_name, X_train, y_train[target], n_splits, random_state, score_function, xgb_objective), 
                         n_trials=n_trials, callbacks=[callback])
             print(f'Tuning finished! \n')
             opt_model = study.user_attrs["best_booster"]
