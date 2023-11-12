@@ -97,7 +97,7 @@ def callback(study, trial):
         study.set_user_attr(key="best_booster", value=trial.user_attrs["best_booster"])
 
 
-def tune_model(run_name, model_name, direction, task, n_trials, X_train, y_train, X_test, y_test, n_splits, 
+def tune_model(run_name, model_name, direction, task, n_trials, targets, X_train, y_train, X_test, y_test, n_splits, 
                random_state, xgb_objective, score_function, mlflow_model_name):
     """Tune model and plot results
 
@@ -107,6 +107,7 @@ def tune_model(run_name, model_name, direction, task, n_trials, X_train, y_train
         direction (string): maximize or minimize
         task (string): regression or classification
         n_trials (int): number of trials
+        targets (list): list of target names
         X_train (DataFrame): training features
         y_train (DataFrame): training targets
         X_test (DataFrame): testing features
