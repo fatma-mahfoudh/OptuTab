@@ -37,7 +37,7 @@ def instantiate_xgboost(trial, random_state, task, objective):
     else:
         raise Exception(f"Task should be in (regression, classification), {task} passed") 
 
-def instantiate_model(trial, model_name, random_state, task, objective=None):
+def instantiate_model(trial, model_name, random_state, task, xgb_objective=None):
     """Create model instance to tune
 
     Args:
@@ -45,19 +45,19 @@ def instantiate_model(trial, model_name, random_state, task, objective=None):
         model_name (string): model name
         random_state (int): seed number
         task (string): regression or classification
-        objective (string): check xgb documentation for list 
+        xgb_objective (string): check xgb documentation for list 
 
     Raises:
         Exception: exception if model name not in [XGBoost]
     """
     model_name = model_name.lower()
     if model_name in ["xgboost"]:
-        model = getattr(sys.modules[__name__], f"instantiate_{model_name}")(trial, random_state, task, objective)
+        model = getattr(sys.modules[__name__], f"instantiate_{model_name}")(trial, random_state, task, xgb_objective)
     else:
         raise Exception(f"model name should be in [xgboost], {model_name} was passed")
     return(model)
 
-def objective(trial, model_name, X, y, n_splits, random_state, task, objective=None, score_function):
+def objective(trial, model_name, X, y, n_splits, random_state, task, score_function, xgb_objective=None):
     """Define objective function for hyperparameter optimization
 
     Args:
@@ -68,10 +68,10 @@ def objective(trial, model_name, X, y, n_splits, random_state, task, objective=N
         n_splits (int): number of splits for cross validation
         random_state (int): random seed
         task (string): regression or classification
-        objective (string): see xgb documentation for list
+        xgb_objective (string): see xgb documentation for list
         score_function (function): function for scoring
     """
-    model = instantiate_model(trial, model_name, random_state, task, objective)
+    model = instantiate_model(trial, model_name, random_state, task, xgb_objective)
     if model_name == "xgboost":
         from xgboost import cv, DMatrix
         from optuna.integration import XGBoostPruningCallback
@@ -98,7 +98,7 @@ def callback(study, trial):
 
 
 def tune_model(run_name, model_name, direction, task, n_trials, X_train, y_train, X_test, y_test, n_splits, 
-               random_state, mlflow_model_name):
+               random_state, xgb_objective, score_function, mlflow_model_name):
     """Tune model and plot results
 
     Args:
@@ -113,7 +113,7 @@ def tune_model(run_name, model_name, direction, task, n_trials, X_train, y_train
         y_test (DataFrame): testing targets
         n_splits (int): number of splits for cross validation
         random_state (int): number to fix seed 
-        objective (string): see xgb documentation for list
+        xgb_objective (string): see xgb documentation for list
         score_function (function): function for scoring
         mlflow_model_name (string): model name to be used for mlflow logging
     """
