@@ -1,3 +1,6 @@
 data
 deprecated
 helpers/deprecated
+__pycache__
+helpers/__pycache__
+mlruns

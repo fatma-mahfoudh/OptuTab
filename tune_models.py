@@ -7,7 +7,7 @@ import sys
 import os
 import contextlib
 
-def instantiate_xgboost(params, task, objective, random_state):
+def instantiate_xgboost(params, task, model_objective, random_state):
     """Creates XGBoost model
 
     Args:
@@ -23,7 +23,7 @@ def instantiate_xgboost(params, task, objective, random_state):
         XGBoost instance: XGBoost model instance specific to task
     """
     default_params = {
-            "objective": objective,
+            "objective": model_objective,
             "random_state": random_state,
             # "grow_policy": "lossguide",
             # "tree_method": "hist",
@@ -40,12 +40,13 @@ def instantiate_xgboost(params, task, objective, random_state):
     else:
         raise Exception(f"Task should be in (regression, classification), {task} passed")
     
-def instantiate_lgbm(params, task, random_state, **kwargs):
+def instantiate_lgbm(params, task, model_objective, random_state, **kwargs):
     """Creates LGBM model
 
     Args:
         params (dictionary): dictionary of lgbm params
         task (string): regression or classification
+        objective (string): see LGBM documentation
         random_state (int): seed number
 
     Raises:
@@ -55,7 +56,7 @@ def instantiate_lgbm(params, task, random_state, **kwargs):
         LGBM instance: LGBM model instance specific to task
     """
     default_params = {
-            "objective": task,
+            "objective": model_objective,
             "random_state": random_state,
             "verbosity": -1,
         }
@@ -220,14 +221,14 @@ def instantiate_elasticnet(params, random_state, **kwargs):
     params.update(default_params)
     return(ElasticNet(**params))
 
-def instantiate_trial_xgboost(trial, random_state, task, objective):
+def instantiate_trial_xgboost(trial, random_state, task, model_objective):
     """Creates trial XGBoost model to tune
 
     Args:
         trial (Trial): Trial Optuna object
         random_state (int): seed number
         task (string): regression or classification
-        objective (string): learning objective, see xgboost documentation for list
+        model_objective (string): learning objective, see xgboost documentation for list
 
     Returns:
         XGBoost instance: XGBoost model instance with Trial parameters
@@ -248,15 +249,16 @@ def instantiate_trial_xgboost(trial, random_state, task, objective):
 
         }
     # params["max_depth"] = trial.suggest_int("max_depth", 3, 6) if params["tree_method"] == "exact" else 0
-    return(instantiate_xgboost(params, task, objective=objective, random_state=random_state))
+    return(instantiate_xgboost(params, task, model_objective=model_objective, random_state=random_state))
 
-def instantiate_trial_lgbm(trial, random_state, task, **kwargs):
+def instantiate_trial_lgbm(trial, random_state, task, model_objective):
     """Creates trial LGBM model to tune
 
     Args:
         trial (Trial): Trial Optuna object
         random_state (int): seed number
         task (string): regression or classification
+        model_objective (string): learning objective, see lgbm documentation for list
 
     Returns:
         LGBM instance: LGBM model instance with Trial parameters
@@ -273,7 +275,7 @@ def instantiate_trial_lgbm(trial, random_state, task, **kwargs):
         'num_leaves' : trial.suggest_int('num_leaves', 6, 20),
         'min_child_samples': trial.suggest_int('min_child_samples', 3, 20),
     }
-    return(instantiate_lgbm(params, task, random_state=random_state)) 
+    return(instantiate_lgbm(params, task, model_objective=model_objective, random_state=random_state)) 
 
 def instantiate_trial_catboost(trial, random_state, task, **kwargs):
     """Creates trial CatBoost model to tune
@@ -395,7 +397,7 @@ def instantiate_trial_elasticnet(trial, random_state, **kwargs):
     params.update(default_params)
     return(instantiate_elasticnet(params, random_state))
 
-def instantiate_model(trial, model_name, random_state, task, xgb_objective=None):
+def instantiate_model(trial, model_name, random_state, task, model_objective=None):
     """Creates model instance to tune
 
     Args:
@@ -403,7 +405,7 @@ def instantiate_model(trial, model_name, random_state, task, xgb_objective=None)
         model_name (string): model name
         random_state (int): seed number
         task (string): regression or classification
-        xgb_objective (string): check xgb documentation for list 
+        objective (string): check xgb/lgbm documentation for list 
 
     Raises:
         Exception: exception if model name not in ["xgboost", "lgbm", "catboost", "elasticnet", "randomforest", "extratrees", "knn", "svm"]
@@ -415,13 +417,13 @@ def instantiate_model(trial, model_name, random_state, task, xgb_objective=None)
     supported_models = ["xgboost", "lgbm", "catboost", "elasticnet", "randomforest", "extratrees", "knn", "svm"]
     if model_name in supported_models:
         model = getattr(sys.modules[__name__], f"instantiate_trial_{model_name}")(trial=trial, random_state=random_state, task=task, 
-                                                                                  objective=xgb_objective)
+                                                                                  model_objective=model_objective)
     else:
         raise Exception(f"model name should be in {supported_models}, {model_name} was passed")
     return(model)
 
 def objective(trial, model_name, X, y, n_splits, random_state, task, base_score_function, 
-              cv_score_function, xgb_objective=None):
+              cv_score_function, model_objective=None):
     """Defines objective function for hyperparameter optimization
 
     Args:
@@ -434,12 +436,12 @@ def objective(trial, model_name, X, y, n_splits, random_state, task, base_score_
         task (string): regression or classification
         base_score_function (function): base function for scoring
         cv_score_function (function): cross validation function for scoring LGBM, XGBoost
-        xgb_objective (string): see xgb documentation for list
+        model_objective (string): see xgb/lgbm documentation for list
 
     Returns:
         float: objective function value to optimize
     """
-    model = instantiate_model(trial, model_name, random_state, task, xgb_objective)
+    model = instantiate_model(trial, model_name, random_state, task, model_objective)
     if model_name == "xgboost":
         from xgboost import cv, DMatrix
         from optuna.integration import XGBoostPruningCallback
@@ -455,7 +457,7 @@ def objective(trial, model_name, X, y, n_splits, random_state, task, base_score_
         from lightgbm import cv, Dataset
         from optuna.integration import LightGBMPruningCallback
         dtrain = Dataset(data=X, label=y)
-        pruning_callback = LightGBMPruningCallback(trial, f"valid {cv_score_function.__name__}")
+        pruning_callback = LightGBMPruningCallback(trial, f"valid {cv_score_function.__name__}") #if task == "regression" else cv_score_function.__name__)
         with open(os.devnull, "w") as f, contextlib.redirect_stdout(f):
             cv_scores = cv(params=model.get_params(), train_set=dtrain, 
                         nfold=n_splits,
@@ -463,7 +465,7 @@ def objective(trial, model_name, X, y, n_splits, random_state, task, base_score_
                         feval=cv_score_function, seed=random_state,
                         callbacks=[pruning_callback], shuffle=True
                         )
-        return(cv_scores[f"valid {cv_score_function.__name__}-mean"][-1])
+        return(cv_scores[f"valid {cv_score_function.__name__}-mean"][-1]) #if task == "regression" else cv_scores[f"{cv_score_function.__name__}-mean"][-1])
     elif model_name == "catboost":
         from catboost import cv, Pool
         from optuna.integration import CatBoostPruningCallback
@@ -484,7 +486,7 @@ def objective(trial, model_name, X, y, n_splits, random_state, task, base_score_
 
 def tune_model(run_name, model_name, direction, timeout, targets, X_train, y_train, X_test, y_test, n_splits, 
                random_state, base_score_function, mlflow_model_name, task=None, cv_score_function=None,
-               inverse_transform=None, warm_start_dict=None, xgb_objective=None):
+               inverse_transform=None, warm_start_dict=None, model_objective=None):
     """Tunes model and plot results
 
     Args:
@@ -505,7 +507,7 @@ def tune_model(run_name, model_name, direction, timeout, targets, X_train, y_tra
         cv_score_function (function): cross validation function for scoring LGBM or XGBoost
         inverse_transform (function): function to inverse transform targets
         warm_start_dict (dictionary): dictionary of list of params dictionaries to start optimization with for each target {"target1":[{"param1":val1, "param2":val2},...]}
-        xgb_objective (string): see xgb documentation for list
+        model_objective (string): see xgb/lgbm documentation for list
 
     Returns:
         dictionary: score dictionary 
@@ -527,12 +529,12 @@ def tune_model(run_name, model_name, direction, timeout, targets, X_train, y_tra
                 for i in range(len(warm_start_list)):
                     study.enqueue_trial(warm_start_list[i])
             study.optimize(lambda trial: objective(trial, model_name, X_train, y_train_target, n_splits, 
-                                                   random_state, task, base_score_function, cv_score_function, xgb_objective), 
+                                                   random_state, task, base_score_function, cv_score_function, model_objective), 
                         timeout=timeout)
             print(f'Tuning finished! \n')
             best_params = study.best_params #max(study.best_trials, key=lambda t: t.values[1]).params #multi objective optimization
             opt_model = getattr(sys.modules[__name__], f"instantiate_{model_name}")(best_params, task=task, 
-                                                                                    objective=xgb_objective, 
+                                                                                    model_objective=model_objective, 
                                                                                     random_state=random_state)
             opt_model.fit(X_train, y_train_target)
             y_pred_train_target = pd.DataFrame(opt_model.predict(X_train), columns=[target])

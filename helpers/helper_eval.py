@@ -28,7 +28,7 @@ def f1_micro(y_true, y_pred):
     Returns:
         float: F1 score value
     """
-    return(f1_micro(y_true, y_pred, average="micro"))
+    return(f1_score(y_true, y_pred, average="micro"))
 
 def f1_macro(y_true, y_pred):
     """F1 score with macro average
@@ -40,7 +40,7 @@ def f1_macro(y_true, y_pred):
     Returns:
         float: F1 score value
     """
-    return(f1_micro(y_true, y_pred, average="macro"))
+    return(f1_score(y_true, y_pred, average="macro"))
 
 def f1_weighted(y_true, y_pred):
     """F1 score with weighted average
@@ -52,7 +52,7 @@ def f1_weighted(y_true, y_pred):
     Returns:
         float: F1 score value
     """
-    return(f1_micro(y_true, y_pred, average="weighted"))
+    return(f1_score(y_true, y_pred, average="weighted"))
 
 def add_score(score_dict, y_dict, model_name, target_name, task):
     """Update the score dict for each new model
